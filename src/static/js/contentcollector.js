@@ -311,7 +311,6 @@ function makeContentCollector(collectStyles, browser, apool, domInterface, class
       ['insertorder', 'first']
     ].concat(
       _.map(state.lineAttributes,function(value,key){
-        if (window.console) console.log([key, value])
         return [key, value];
       })
     );
@@ -399,7 +398,7 @@ function makeContentCollector(collectStyles, browser, apool, domInterface, class
         if (endPoint && node == endPoint.node)
         {
           selEnd = _pointHere(0, state);
-			}
+        }
       }
       while (txt.length > 0)
       {
@@ -468,7 +467,7 @@ function makeContentCollector(collectStyles, browser, apool, domInterface, class
         var startNewLine= (typeof(induceLineBreak)=='object'&&induceLineBreak.length==0)?true:induceLineBreak[0];
         if(startNewLine){
           cc.startNewLine(state);
-        }		  
+        }
       }
       else if (tname == "script" || tname == "style")
       {
@@ -516,7 +515,7 @@ function makeContentCollector(collectStyles, browser, apool, domInterface, class
           {
             var type;
             var rr = cls && /(?:^| )list-([a-z]+[12345678])\b/.exec(cls);
-            type = rr && rr[1] || "bullet" + String(Math.min(_MAX_LIST_LEVEL, (state.listNesting || 0) + 1));
+            type = rr && rr[1] || (tname == "ul" ? "bullet" : "number") + String(Math.min(_MAX_LIST_LEVEL, (state.listNesting || 0) + 1));
             oldListTypeOrNull = (_enterList(state, type) || 'none');
           }
           else if ((tname == "div" || tname == "p") && cls && cls.match(/(?:^| )ace-line\b/))

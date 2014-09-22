@@ -8,7 +8,15 @@ if [ -d "../bin" ]; then
   cd "../"
 fi
 
-#Is wget installed?
+#Is gnu-grep (ggrep) installed on SunOS (Solaris)
+if [ $(uname) = "SunOS" ]; then
+  hash ggrep > /dev/null 2>&1 || { 
+    echo "Please install ggrep (pkg install gnu-grep)" >&2
+    exit 1 
+  }
+fi
+
+#Is curl installed?
 hash curl > /dev/null 2>&1 || { 
   echo "Please install curl" >&2
   exit 1 
@@ -36,8 +44,8 @@ fi
 #check node version
 NODE_VERSION=$(node --version)
 NODE_V_MINOR=$(echo $NODE_VERSION | cut -d "." -f 1-2)
-if [ ! $NODE_V_MINOR = "v0.8" ] && [ ! $NODE_V_MINOR = "v0.6" ]; then
-  echo "You're running a wrong version of node, you're using $NODE_VERSION, we need v0.6.x or v0.8.x" >&2
+if [ ! $NODE_V_MINOR = "v0.8" ] && [ ! $NODE_V_MINOR = "v0.10" ] && [ ! $NODE_V_MINOR = "v0.11" ]; then
+  echo "You're running a wrong version of node, you're using $NODE_VERSION, we need v0.8.x, v0.10.x or v0.11.x" >&2
   exit 1 
 fi
 
@@ -52,16 +60,16 @@ done
 #Does a $settings exist? if no copy the template
 if [ ! -f $settings ]; then
   echo "Copy the settings template to $settings..."
-  cp -v settings.json.template $settings || exit 1
+  cp settings.json.template $settings || exit 1
 fi
 
-echo "Ensure that all dependencies are up to date..."
+echo "Ensure that all dependencies are up to date...  If this is the first time you have run Etherpad please be patient."
 (
   mkdir -p node_modules
   cd node_modules
   [ -e ep_etherpad-lite ] || ln -s ../src ep_etherpad-lite
   cd ep_etherpad-lite
-  npm install
+  npm install --loglevel warn
 ) || { 
   rm -rf node_modules
   exit 1 
@@ -69,10 +77,14 @@ echo "Ensure that all dependencies are up to date..."
 
 echo "Ensure jQuery is downloaded and up to date..."
 DOWNLOAD_JQUERY="true"
-NEEDED_VERSION="1.7.1"
+NEEDED_VERSION="1.9.1"
 if [ -f "src/static/js/jquery.js" ]; then
-  VERSION=$(cat src/static/js/jquery.js | head -n 3 | grep -o "v[0-9]\.[0-9]\(\.[0-9]\)\?");
-  
+  if [ $(uname) = "SunOS" ]; then
+    VERSION=$(cat src/static/js/jquery.js | head -n 3 | ggrep -o "v[0-9]\.[0-9]\(\.[0-9]\)\?");
+  else
+    VERSION=$(cat src/static/js/jquery.js | head -n 3 | grep -o "v[0-9]\.[0-9]\(\.[0-9]\)\?");
+  fi
+
   if [ ${VERSION#v} = $NEEDED_VERSION ]; then
     DOWNLOAD_JQUERY="false"
   fi
@@ -91,11 +103,11 @@ echo "ensure custom css/js files are created..."
 for f in "index" "pad" "timeslider"
 do
   if [ ! -f "src/static/custom/$f.js" ]; then
-    cp -v "src/static/custom/js.template" "src/static/custom/$f.js" || exit 1
+    cp "src/static/custom/js.template" "src/static/custom/$f.js" || exit 1
   fi
   
   if [ ! -f "src/static/custom/$f.css" ]; then
-    cp -v "src/static/custom/css.template" "src/static/custom/$f.css" || exit 1
+    cp "src/static/custom/css.template" "src/static/custom/$f.css" || exit 1
   fi
 done
 

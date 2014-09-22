@@ -19,19 +19,19 @@ exports.createServer = function () {
     var refPath = rootPath + "/.git/" + ref.substring(5, ref.indexOf("\n"));
     version = fs.readFileSync(refPath, "utf-8");
     version = version.substring(0, 7);
-    console.log("Your Etherpad Lite git version is " + version);
+    console.log("Your Etherpad git version is " + version);
   }
   catch(e) 
   {
     console.warn("Can't get git version for server header\n" + e.message)
   }
-  console.log("Report bugs at https://github.com/Pita/etherpad-lite/issues")
+  console.log("Report bugs at https://github.com/ether/etherpad-lite/issues")
 
-  serverName = "Etherpad-Lite " + version + " (http://j.mp/ep-lite)";
+  serverName = "Etherpad " + version + " (http://etherpad.org)";
 
   exports.restartServer();
 
-  console.log("You can access your Etherpad-Lite instance at http://" + settings.ip + ":" + settings.port + "/");
+  console.log("You can access your Etherpad instance at http://" + settings.ip + ":" + settings.port + "/");
   if(!_.isEmpty(settings.users)){
     console.log("The plugin admin page is at http://" + settings.ip + ":" + settings.port + "/admin/plugins");
   }
@@ -42,22 +42,52 @@ exports.createServer = function () {
 }
 
 exports.restartServer = function () {
+
   if (server) {
     console.log("Restarting express server");
     server.close();
   }
 
-  server = express.createServer();
+  var app = express(); // New syntax for express v3
 
-  server.use(function (req, res, next) {
+  if (settings.ssl) {
+
+    console.log( "SSL -- enabled");
+    console.log( "SSL -- server key file: " + settings.ssl.key );
+    console.log( "SSL -- Certificate Authority's certificate file: " + settings.ssl.cert );
+    
+    options = {
+      key: fs.readFileSync( settings.ssl.key ),
+      cert: fs.readFileSync( settings.ssl.cert )
+    };
+    
+    var https = require('https');
+    server = https.createServer(options, app);
+
+  } else {
+
+    var http = require('http');
+    server = http.createServer(app);
+  }
+
+  app.use(function (req, res, next) {
+    // res.header("X-Frame-Options", "deny"); // breaks embedded pads
+    if(settings.ssl){ // if we use SSL
+      res.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    }
+
     res.header("Server", serverName);
     next();
   });
 
-  server.configure(function() {
-    hooks.callAll("expressConfigure", {"app": server});
+  if(settings.trustProxy){
+    app.enable('trust proxy');
+  }
+  
+  app.configure(function() {
+    hooks.callAll("expressConfigure", {"app": app});
   });
-  hooks.callAll("expressCreateServer", {"app": server});
+  hooks.callAll("expressCreateServer", {"app": app, "server": server});
 
   server.listen(settings.port, settings.ip);
 }

@@ -49,7 +49,8 @@ Called from: src/node/server.js
 
 Things in context:
 
-1. app - the main application object (helpful for adding new paths and such)
+1. app - the main express application object (helpful for adding new paths and such)
+2. server - the http server object
 
 This hook gets called after the application object has been created, but before it starts listening. This is similar to the expressConfigure hook, but it's not guaranteed that the application object will have all relevant configuration variables.
 
@@ -62,7 +63,82 @@ Things in context:
 
 This hook gets called upon the rendering of an ejs template block. For any specific kind of block, you can change how that block gets rendered by modifying the content object passed in.
 
-Have a look at `src/templates/pad.html` and `src/templates/timeslider.html` to see which blocks are available.
+Available blocks in `pad.html` are:
+
+ * `htmlHead` - after `<html>` and immediately before the title tag
+ * `styles` - the style `<link>`s
+ * `body` - the contents of the body tag
+ * `editbarMenuLeft` - the left tool bar (consider using the toolbar controller instead of manually adding html here)
+ * `editbarMenuRight` - right tool bar
+ * `afterEditbar` - allows you to add stuff immediately after the toolbar
+ * `userlist` - the contents of the userlist dropdown
+ * `loading` - the intial loading message
+ * `mySettings` - the left column of the settings dropdown ("My view"); intended for adding checkboxes only
+ * `mySettings.dropdowns` - add your dropdown settings here
+ * `globalSettings` - the right column of the settings dropdown ("Global view")
+ * `importColumn` - import form
+ * `exportColumn` - export form
+ * `modals` - Contains all connectivity messages
+ * `embedPopup` - the embed dropdown
+ * `scripts` - Add your script tags here, if you really have to (consider use client-side hooks instead)
+ 
+`timeslider.html` blocks:
+
+ * `timesliderStyles`
+ * `timesliderScripts`
+ * `timesliderBody`
+ * `timesliderTop`
+ * `timesliderEditbarRight`
+ * `modals`
+ 
+ `index.html` blocks:
+ 
+ * `indexWrapper` - contains the form for creating new pads
+
+## padInitToolbar
+Called from: src/node/hooks/express/specialpages.js
+
+Things in context:
+
+1. toolbar - the toolbar controller that will render the toolbar eventually
+
+Here you can add custom toolbar items that will be available in the toolbar config in `settings.json`. For more about the toolbar controller see the API section.
+
+## padCreate
+Called from: src/node/db/Pad.js
+
+Things in context:
+
+1. pad - the pad instance
+
+This hook gets called when a new pad was created.
+
+## padLoad
+Called from: src/node/db/Pad.js
+
+Things in context:
+
+1. pad - the pad instance
+
+This hook gets called when an pad was loaded. If a new pad was created and loaded this event will be emitted too.
+
+## padUpdate
+Called from: src/node/db/Pad.js
+
+Things in context:
+
+1. pad - the pad instance
+
+This hook gets called when an existing pad was updated.
+
+## padRemove
+Called from: src/node/db/Pad.js
+
+Things in context:
+
+1. padID
+
+This hook gets called when an existing pad was removed/deleted.
 
 ## socketio
 Called from: src/node/hooks/express/socketio.js
@@ -71,6 +147,7 @@ Things in context:
 
 1. app - the application object
 2. io - the socketio object
+3. server - the http server object
 
 I have no idea what this is useful for, someone else will have to add this description.
 
@@ -137,6 +214,27 @@ function handleMessage ( hook, context, callback ) {
 };
 ```
 
+## clientVars
+Called from: src/node/handler/PadMessageHandler.js
+
+Things in context:
+
+1. clientVars - the basic `clientVars` built by the core
+2. pad - the pad this session is about
+
+This hook will be called once a client connects and the `clientVars` are being sent. Plugins can use this hook to give the client a initial configuriation, like the tracking-id of an external analytics-tool that is used on the client-side. You can also overwrite values from the original `clientVars`.
+
+Example:
+
+```
+exports.clientVars = function(hook, context, callback)
+{
+  // tell the client which year we are in
+  return callback({ "currentYear": new Date().getFullYear() });
+};
+```
+
+This can be accessed on the client-side using `clientVars.currentYear`.
 
 ## getLineHTMLForExport
 Called from: src/node/utils/ExportHtml.js
@@ -149,3 +247,36 @@ Things in context:
 
 This hook will allow a plug-in developer to re-write each line when exporting to HTML.
 
+## exportFileName
+Called from src/node/handler/ExportHandler.js 
+
+Things in context:
+
+1. padId
+
+This hook will allow a plug-in developer to modify the file name of an exported pad.  This is useful if you want to export a pad under another name and/or hide the padId under export.  Note that the doctype or file extension cannot be modified for security reasons.
+
+Example:
+
+```
+exports.exportFileName = function(hook, padId, callback){
+  callback("newFileName"+padId);
+}
+```
+
+## userLeave
+Called from src/node/handler/PadMessageHandler.js
+
+This in context:
+
+1. session (including the pad id and author id)
+
+This hook gets called when an author leaves a pad. This is useful if you want to perform certain actions after a pad has been edited
+
+Example:
+
+```
+exports.userLeave = function(hook, session, callback) {
+  console.log('%s left pad %s', session.author, session.padId);
+};
+```
